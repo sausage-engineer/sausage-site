@@ -35,6 +35,7 @@ The implementation must satisfy the following technical constraints:
 - The application must be implemented in Java 25.
 - The project should be built as a command-line application, not a web server or long-running daemon.
 - Markdown content should be parsed and rendered using a reputable Java Markdown library, with Flexmark as the preferred default choice.
+- The frontend for the initial version should use Bootstrap as the default UI library and asset bundle.
 - The application should generate static HTML, CSS, and other static assets without requiring a runtime server.
 - The build and preview workflow should be deterministic, repeatable, and suitable for local development and CI usage.
 
@@ -95,6 +96,16 @@ Each page must be authored as a single Markdown file. Each content item may incl
 - draft status
 - libraries: a list of named library bundles to include on that page
 
+Example front matter:
+```yaml
+---
+title: Welcome
+slug: welcome
+libraries:
+  - bootstrap
+---
+```
+
 The markdown file is the complete source for one page. There are no page templates, no shared layout wrappers, and no variable interpolation in the initial version.
 
 ### 8.3 Page Generation and HTML Composition
@@ -113,7 +124,7 @@ The project must support a top-level `library` directory that contains named ass
 - `library/js/<name>/...`
 - additional asset folders as needed
 
-When a page lists a named library in front matter, the build process must copy the corresponding files into the output directory for that page and add the appropriate HTML link/script tags to the generated document.
+Bootstrap should be provided as a default library bundle in the initial product, and page front matter may reference it by name in the same way as any other library. When a page lists a named library in front matter, the build process must copy the corresponding files into the output directory for that page and add the appropriate HTML link/script tags to the generated document.
 
 ### 8.5 Collections and Taxonomy
 The app must support grouping content into logical collections such as:
