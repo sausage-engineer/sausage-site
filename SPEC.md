@@ -2,29 +2,32 @@
 
 ## 1. Overview
 
-Sausage Site is a Java 25 static site generator for building content-driven websites from simple source files and templates. It is designed for developers and content authors who want fast, dependable publishing without a server runtime, database, or CMS backend.
+Sausage Site is a Java 25 static site generator for building content-driven websites from standalone Markdown pages. It is designed for developers and content authors who want fast, dependable publishing without a server runtime, database, or CMS backend.
 
 The product generates a complete static site that can be deployed to any static host, such as GitHub Pages, Netlify, Cloudflare Pages, or any web server that serves HTML files. The application should be implemented as a Java 25 command-line tool with a simple, repeatable build and preview workflow. A popular Java Markdown library such as Flexmark is the preferred implementation choice for parsing and rendering Markdown content.
+
+Each page is a single Markdown file. A top-level `library` directory contains named subdirectories such as `css`, `js`, and other asset groups. A page's front matter identifies which named libraries should be copied into the page's output directory and linked or included in the generated HTML. There are no HTML templates or variable substitution features in the initial product. Each generated page is simply the rendered Markdown body placed into an HTML document that includes the configured library links and script tags.
 
 ## 2. Problem Statement
 
 Many small sites and personal projects need a simple way to publish content quickly without managing a backend system. Existing solutions are often either too heavy, too opinionated, or too difficult to customize.
 
 Sausage Site should provide a minimal but robust workflow:
-- content authored in Markdown files
+- single-page Markdown content files
 - predictable build output
-- reusable templates
+- named library bundles for CSS and JavaScript assets
 - easy local preview
 - static deployment to common hosting providers
 
 ## 3. Product Goals
 
-- Generate static HTML from source content
+- Generate static HTML from standalone Markdown page files
 - Support Markdown-based authoring with front matter
-- Allow site-wide configuration and custom layouts
+- Allow per-page asset selection from a top-level library registry
 - Keep the build process deterministic and fast
 - Provide a local preview workflow for development
 - Produce deployable output with no runtime server requirements
+- Avoid template engines and variable replacement in the initial product
 
 ## 4. Technology Constraints
 
@@ -41,6 +44,8 @@ The initial version will not include:
 - user authentication or authorization
 - database-backed content management
 - server-side rendering
+- HTML template systems or layout inheritance
+- variable replacement or page interpolation at build time
 - online visual CMS editing
 - plugin marketplace or ecosystem at v1
 - dynamic forms or comments systems
@@ -55,13 +60,13 @@ A developer who wants to ship a site for their project, portfolio, blog, or docu
 A writer or editor who wants to create pages and posts in a simple, low-friction format with minimal tooling.
 
 ### 6.3 Site maintainer
-A person responsible for configuration, templates, navigation, and deployment but not a full-stack app developer.
+A person responsible for configuration, asset library management, navigation, and deployment but not a full-stack app developer.
 
 ## 7. Core User Stories
 
 - As a content author, I can write a post in Markdown so it renders as a page.
 - As a site owner, I can configure site metadata such as title, description, and navigation.
-- As a developer, I can reuse templates across pages and posts.
+- As a developer, I can choose which named library bundles are included on a page.
 - As a maintainer, I can preview the site locally before deploying.
 - As a publisher, I can build a static output directory suitable for deployment.
 - As a user, I can browse a site with clean, semantic HTML and minimal JavaScript.
@@ -77,10 +82,10 @@ The app must support a site configuration file containing:
 - navigation links
 - output directory
 - source directories
-- optional theme or template settings
+- optional default asset libraries
 
 ### 8.2 Content Authoring
-The app must support content authored in Markdown. Each content item may include front matter metadata such as:
+Each page must be authored as a single Markdown file. Each content item may include front matter metadata such as:
 - title
 - slug
 - date
@@ -88,15 +93,29 @@ The app must support content authored in Markdown. Each content item may include
 - tags
 - category
 - draft status
+- libraries: a list of named library bundles to include on that page
 
-### 8.3 Page and Post Generation
-The app must generate pages and posts from source content into HTML output. Generated items should include:
-- rendered body content
-- metadata in page headers
-- canonical URLs or slugs
-- listing pages for collections
+The markdown file is the complete source for one page. There are no page templates, no shared layout wrappers, and no variable interpolation in the initial version.
 
-### 8.4 Collections and Taxonomy
+### 8.3 Page Generation and HTML Composition
+The app must generate a standalone HTML document for each Markdown page. Generated items should include:
+- rendered body content from the Markdown file
+- stylesheet link tags for each selected library CSS bundle
+- script tags for each selected library JavaScript bundle
+- optional metadata in the document head when provided by front matter
+- a generated filename and URL based on the page's slug or path
+
+The resulting HTML document must be composed from the Markdown-rendered body plus the configured library asset references, without requiring HTML templates.
+
+### 8.4 Library Registry
+The project must support a top-level `library` directory that contains named asset bundles. Each bundle may be organized by type, including:
+- `library/css/<name>/...`
+- `library/js/<name>/...`
+- additional asset folders as needed
+
+When a page lists a named library in front matter, the build process must copy the corresponding files into the output directory for that page and add the appropriate HTML link/script tags to the generated document.
+
+### 8.5 Collections and Taxonomy
 The app must support grouping content into logical collections such as:
 - posts
 - pages
@@ -105,9 +124,6 @@ The app must support grouping content into logical collections such as:
 
 This may be implemented as a basic collection model with automatic listing generation.
 
-### 8.5 Layouts and Partials
-The app must support reusable layouts and partials so pages can share headers, footers, sidebars, and wrappers.
-
 ### 8.6 Asset Handling
 The app must support copying static assets into the generated site, including:
 - images
@@ -115,6 +131,8 @@ The app must support copying static assets into the generated site, including:
 - JavaScript
 - fonts
 - favicon files
+
+Asset copying must respect page-local source and library configuration so each page receives the assets named in its front matter.
 
 ### 8.7 Build and Preview
 The app must provide at least two core commands:
@@ -152,8 +170,8 @@ The generated site must be deployable without requiring a running application se
 - Configuration loader
 - Content parser
 - Front matter and metadata handling
-- Renderer
-- Template engine
+- Markdown renderer
+- Library asset resolver
 - Asset pipeline
 - Site builder
 - Preview server
@@ -161,12 +179,13 @@ The generated site must be deployable without requiring a running application se
 ### 10.2 Suggested Runtime Model
 The app should follow a simple build-centric architecture:
 1. load configuration
-2. read source content files
+2. discover page Markdown files
 3. parse metadata and content
-4. transform content to renderable data structures
-5. render pages and collections through templates
-6. copy static assets
-7. write generated output to a build directory
+4. resolve page-specific library asset bundles from the `library` directory
+5. copy selected assets to the output directory and compute HTML tag references
+6. render Markdown into HTML
+7. assemble final page HTML without templates
+8. write generated output to a build directory
 
 This model keeps the project understandable and reduces operational complexity.
 
@@ -179,7 +198,7 @@ This model keeps the project understandable and reduces operational complexity.
 - outputDir: string
 - sourceDir: string
 - nav: array of links
-- theme: optional string
+- defaultLibraries: array of strings
 
 ### 11.2 ContentItem
 - id: string
@@ -194,16 +213,24 @@ This model keeps the project understandable and reduces operational complexity.
 - tags: array
 - category: string
 - draft: boolean
+- libraries: array of strings
 
-### 11.3 Layout
+### 11.3 LibraryBundle
 - name: string
-- templatePath: string
-- variables: object
+- path: string
+- type: css | js | asset
+- files: array of file paths
 
 ### 11.4 Asset
 - sourcePath: string
 - targetPath: string
 - kind: image | css | js | font | other
+
+### 11.5 PageRenderResult
+- htmlBody: string
+- cssLinks: array of href values
+- jsSources: array of src values
+- outputPath: string
 
 ## 12. User Experience Flow
 
@@ -211,13 +238,13 @@ This model keeps the project understandable and reduces operational complexity.
 1. Create a project directory
 2. Add configuration file
 3. Add content files
-4. Add layout templates
+4. Add library bundles under the top-level `library` directory
 5. Run build
 
 ### 12.2 Local Preview
 1. Run preview command
 2. Start local server
-3. Watch relevant content and templates for changes
+3. Watch relevant Markdown, library, and configuration files for changes
 4. Rebuild site automatically
 5. Refresh browser to inspect output
 
@@ -230,21 +257,20 @@ This model keeps the project understandable and reduces operational complexity.
 
 The MVP will be considered successful if:
 - a user can create a basic site configuration
-- a Markdown file renders into HTML output
-- the build command produces static files in an output directory
+- a single Markdown file renders into a standalone HTML page
+- a page can declare one or more named libraries from the `library` directory
+- the build command copies selected library assets into the output directory and emits the correct HTML link/script tags
 - a preview command serves the site locally
-- pages can reuse templates and shared layout structure
 - the output is deployable to a static hosting provider
 - invalid configuration or content yields a clear error
 
 ## 14. Minimum Viable Product (MVP)
 
 The MVP should prioritize the smallest useful, reliable version of the product:
-- Markdown-based content support
+- single-file Markdown page support
 - simple front matter metadata
-- single site configuration
-- basic templating
-- static build output
+- library-based asset selection from the top-level `library` directory
+- static HTML generation without templates
 - local preview server
 - asset copying
 
@@ -256,26 +282,26 @@ This is enough to validate the product’s value before expanding features.
 - project scaffold
 - config loading
 - Markdown rendering
-- template system
+- library asset pipeline
 - build command
 - preview command
 
 ### Phase 2: Publishing Experience
 - tags and categories
 - better pagination and collection pages
-- custom themes
+- default public library bundles
 - improved asset handling
 
 ### Phase 3: Scale and Flexibility
-- optional advanced templating features
 - richer metadata handling
 - external data or content sources
 - deployment integrations
+- optional advanced asset or theme conventions
 
 ## 16. Risks and Constraints
 
 - scope creep from trying to support too many features early
-- over-engineered templating too early in the project
+- over-engineered asset or styling conventions too early in the project
 - unclear content model if metadata requirements are not standardized
 - inconsistent behavior between build and preview workflows
 
