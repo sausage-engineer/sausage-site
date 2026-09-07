@@ -85,6 +85,8 @@ The app must support a site configuration file containing:
 - source directories
 - optional default asset libraries
 
+By default, the generated output should be written to a `target` directory under the input project root. If a source directory is used, a `src` directory may be used as the root for Markdown content; otherwise the app may accept content directly from the project root.
+
 ### 8.2 Content Authoring
 Each page must be authored as a single Markdown file. Each content item may include front matter metadata such as:
 - title
@@ -196,7 +198,7 @@ The app should follow a simple build-centric architecture:
 5. copy selected assets to the output directory and compute HTML tag references
 6. render Markdown into HTML
 7. assemble final page HTML without templates
-8. write generated output to a build directory
+8. write generated output to the project `target` directory by default
 
 This model keeps the project understandable and reduces operational complexity.
 
@@ -210,6 +212,8 @@ This model keeps the project understandable and reduces operational complexity.
 - sourceDir: string
 - nav: array of links
 - defaultLibraries: array of strings
+
+Default behavior: if no output directory is explicitly configured, the app writes generated files to `<project-root>/target`. If a source tree is used, the default content root may be `<project-root>/src`; otherwise content may be read from the project root directly.
 
 ### 11.2 ContentItem
 - id: string
@@ -248,9 +252,10 @@ This model keeps the project understandable and reduces operational complexity.
 ### 12.1 Initial Setup
 1. Create a project directory
 2. Add configuration file
-3. Add content files
+3. Add content files, optionally under a top-level `src` directory
 4. Add library bundles under the top-level `library` directory
 5. Run build
+6. Verify output is generated in `<project-root>/target`
 
 ### 12.2 Local Preview
 1. Run preview command
@@ -271,6 +276,7 @@ The MVP will be considered successful if:
 - a single Markdown file renders into a standalone HTML page
 - a page can declare one or more named libraries from the `library` directory
 - the build command copies selected library assets into the output directory and emits the correct HTML link/script tags
+- the build output is written to `<project-root>/target` by default
 - a preview command serves the site locally
 - the output is deployable to a static hosting provider
 - invalid configuration or content yields a clear error
