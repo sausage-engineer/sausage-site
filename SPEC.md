@@ -97,6 +97,7 @@ Each page must be authored as a single Markdown file. Each content item may incl
 - category
 - draft status
 - libraries: a list of named library bundles to include on that page
+- apps: a list of app names that should be mounted in the generated HTML
 
 Example front matter:
 ```yaml
@@ -105,6 +106,9 @@ title: Welcome
 slug: welcome
 libraries:
   - bootstrap
+apps:
+  - todo
+  - calendar
 ---
 ```
 
@@ -115,8 +119,11 @@ The app must generate a standalone HTML document for each Markdown page. Generat
 - rendered body content from the Markdown file
 - stylesheet link tags for each selected library CSS bundle
 - script tags for each selected library JavaScript bundle
+- app mount points for each named app in the front matter, represented as HTML div elements that JavaScript can target
 - optional metadata in the document head when provided by front matter
 - a generated filename and URL based on the page's slug or path
+
+Each app in the `apps` front matter must be converted into a placeholder div in the HTML output, so JavaScript can find and hydrate the app by name. A simple convention is to emit `div` elements with a `data-app` attribute such as `<div data-app="todo"></div>`. The app placeholders should be inserted into the page body alongside the rendered Markdown content.
 
 The resulting HTML document must be composed from the Markdown-rendered body plus the configured library asset references, without requiring HTML templates.
 
@@ -229,6 +236,7 @@ Default behavior: if no output directory is explicitly configured, the app write
 - category: string
 - draft: boolean
 - libraries: array of strings
+- apps: array of strings
 
 ### 11.3 LibraryBundle
 - name: string
@@ -245,6 +253,7 @@ Default behavior: if no output directory is explicitly configured, the app write
 - htmlBody: string
 - cssLinks: array of href values
 - jsSources: array of src values
+- appMounts: array of app names or placeholder selectors
 - outputPath: string
 
 ## 12. User Experience Flow
