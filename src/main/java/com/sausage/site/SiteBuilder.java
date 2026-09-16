@@ -29,10 +29,12 @@ public final class SiteBuilder {
         Files.createDirectories(outputRoot);
 
         Path libraryRoot = projectRoot.resolve("lib");
+        Path dataRoot = projectRoot.resolve("data");
         List<Path> markdownFiles = Files.walk(contentRoot)
                 .filter(path -> path.toString().endsWith(".md"))
                 .filter(path -> !path.startsWith(outputRoot))
                 .filter(path -> !path.startsWith(libraryRoot))
+                .filter(path -> !path.startsWith(dataRoot))
                 .sorted()
                 .toList();
 
@@ -58,6 +60,10 @@ public final class SiteBuilder {
                     String src = outputFile.getParent().relativize(jsFile).toString().replace('\\', '/');
                     jsTags.append("<script src=\"" + src + "\"></script>\n");
                 }
+            }
+
+            for (String dataName : page.data()) {
+                copyDataBundle(projectRoot, outputFile.getParent(), dataName);
             }
 
             String renderedBody = renderMarkdown(page.body());
@@ -130,7 +136,7 @@ public final class SiteBuilder {
         StringBuilder out = new StringBuilder();
         for (Map.Entry<String, String> entry : metadata.entrySet()) {
             String key = entry.getKey();
-            if (key.equals("title") || key.equals("slug") || key.equals("libraries") || key.equals("apps") || key.equals("draft")) {
+            if (key.equals("title") || key.equals("slug") || key.equals("libraries") || key.equals("data") || key.equals("apps") || key.equals("draft")) {
                 continue;
             }
             out.append("  <meta name=\"" + escapeHtml(key) + "\" content=\"" + escapeHtml(entry.getValue()) + "\">\n");
@@ -174,6 +180,14 @@ public final class SiteBuilder {
         if (Files.exists(legacyJsRoot)) {
             copyDirectory(legacyJsRoot, outputLibraryDir.resolve("js"));
         }
+    }
+
+    private static void copyDataBundle(Path projectRoot, Path outputDirectory, String dataName) throws IOException {
+        Path dataRoot = projectRoot.resolve("data").resolve(dataName);
+        if (!Files.exists(dataRoot)) {
+            return;
+        }
+        copyDirectory(dataRoot, outputDirectory.resolve("data").resolve(dataName));
     }
 
     private static void copyDirectory(Path source, Path target) throws IOException {
@@ -220,6 +234,7 @@ public final class SiteBuilder {
                 }
             }
             List<String> libs = new ArrayList<>();
+            List<String> data = new ArrayList<>();
             List<String> apps = new ArrayList<>();
             List<String> current = null;
             String currentKey = null;
@@ -241,6 +256,8 @@ public final class SiteBuilder {
                     if (value.isEmpty()) {
                         if ("libraries".equals(currentKey)) {
                             current = libs;
+                        } else if ("data".equals(currentKey)) {
+                            current = data;
                         } else if ("apps".equals(currentKey)) {
                             current = apps;
                         } else {
@@ -252,6 +269,7 @@ public final class SiteBuilder {
                 }
             }
             metadata.put("libraries", String.join(",", libs));
+            metadata.put("data", String.join(",", data));
             metadata.put("apps", String.join(",", apps));
         }
 
@@ -263,6 +281,19 @@ public final class SiteBuilder {
                     String val = item.trim();
                     if (!val.isEmpty()) {
                         libraries.add(val);
+                    }
+                }
+            }
+        }
+
+        List<String> data = new ArrayList<>();
+        if (metadata.containsKey("data")) {
+            String raw = metadata.get("data");
+            if (!raw.isBlank()) {
+                for (String item : raw.split(",")) {
+                    String val = item.trim();
+                    if (!val.isEmpty()) {
+                        data.add(val);
                     }
                 }
             }
@@ -284,11 +315,14 @@ public final class SiteBuilder {
         if (libraries.isEmpty()) {
             libraries = List.of();
         }
+        if (data.isEmpty()) {
+            data = List.of();
+        }
         if (apps.isEmpty()) {
             apps = List.of();
         }
 
-        return new Page(body, metadata, libraries, apps);
+        return new Page(body, metadata, libraries, data, apps);
     }
 
     private static String renderMarkdown(String markdown) {
@@ -310,12 +344,15 @@ public final class SiteBuilder {
         if (name.endsWith(".html")) return "text/html; charset=utf-8";
         if (name.endsWith(".css")) return "text/css; charset=utf-8";
         if (name.endsWith(".js")) return "application/javascript; charset=utf-8";
+        if (name.endsWith(".json")) return "application/json; charset=utf-8";
+        if (name.endsWith(".csv")) return "text/csv; charset=utf-8";
+        if (name.endsWith(".yaml") || name.endsWith(".yml")) return "application/yaml; charset=utf-8";
         if (name.endsWith(".png")) return "image/png";
         if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
         if (name.endsWith(".svg")) return "image/svg+xml";
         return "application/octet-stream";
     }
 
-    public record Page(String body, Map<String, String> metadata, List<String> libraries, List<String> apps) {
+    public record Page(String body, Map<String, String> metadata, List<String> libraries, List<String> data, List<String> apps) {
     }
 }
