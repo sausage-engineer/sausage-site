@@ -136,19 +136,21 @@ public final class SiteBuilder {
     }
 
     private static String resolveBaseUrl(Path projectRoot) throws IOException {
-        Path siteConfig = projectRoot.resolve("site.json");
-        if (!Files.exists(siteConfig)) {
-            return "/";
+        Path current = projectRoot;
+        while (current != null) {
+            Path siteConfig = current.resolve("site.config.json");
+            if (Files.exists(siteConfig)) {
+                String json = Files.readString(siteConfig, StandardCharsets.UTF_8);
+                Matcher matcher = Pattern.compile("\\\"baseUrl\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"\\\\])*)\\\"").matcher(json);
+                if (matcher.find()) {
+                    String baseUrl = matcher.group(1).replace("\\/", "/").replace("\\\"", "\"");
+                    return normalizeBaseUrl(baseUrl);
+                }
+                return "/";
+            }
+            current = current.getParent();
         }
-
-        String json = Files.readString(siteConfig, StandardCharsets.UTF_8);
-        Matcher matcher = Pattern.compile("\\\"baseUrl\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"\\\\])*)\\\"").matcher(json);
-        if (!matcher.find()) {
-            return "/";
-        }
-
-        String baseUrl = matcher.group(1).replace("\\/", "/").replace("\\\"", "\"");
-        return normalizeBaseUrl(baseUrl);
+        return "/";
     }
 
     private static String normalizeBaseUrl(String baseUrl) {

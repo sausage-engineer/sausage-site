@@ -76,23 +76,27 @@ A person responsible for configuration, asset library management, navigation, an
 ## 8. Functional Requirements
 
 ### 8.1 Site Configuration
-The app must support a top-level `site.json` file containing site-level configuration. For the initial release, the only required or supported configuration key is `baseUrl`; all other fields are optional and may be introduced later.
+The app must support a directory-scoped configuration file named `site.config.json`. Any directory may contain this file, and the file configures that directory and all descendant directories unless a deeper directory provides its own `site.config.json`.
 
-Supported configuration:
-- `baseUrl`: the site's base URL, used to emit the document `<base href="...">` tag in the HTML `<head>`
+This provides a simple inheritance model for site subtrees such as PWA-specific folders or content groups. A child directory config overrides the parent config for its subtree, and the effective configuration for a page is the nearest ancestor config.
 
-If `site.json` is absent or `baseUrl` is not configured, the app assumes the site base is "/". The generated HTML should include a `<base href="/">` tag in the document head when the default is used, and `<base href="https://example.com/">` when a custom base is configured.
+Supported configuration for the initial release:
+- `baseUrl`: the site's base URL for that subtree, used to emit the document `<base href="...">` tag in the HTML `<head>`
+
+If no config file is found in the page's ancestry, the app assumes the site base is "/". The generated HTML should include a `<base href="/">` tag in the document head when the default is used, and `<base href="https://example.com/">` when a custom base is configured.
 
 This is not a `<header>` tag; the correct HTML element is `<base>` placed inside `<head>`.
 
 By default, the generated output should be written to a `target` directory under the input project root. If a source directory is used, a `src` directory may be used as the root for Markdown content; otherwise the app may accept content directly from the project root.
 
-Example `site.json`:
+Example directory config:
 ```json
 {
-  "baseUrl": "/docs/"
+  "baseUrl": "/pwa/my-app/"
 }
 ```
+
+A subdirectory may override this value with another `site.config.json` file if it needs a different base URL or behavior.
 
 ### 8.2 Content Authoring
 Each page must be authored as a single Markdown file. Each content item may include front matter metadata such as:
@@ -236,7 +240,7 @@ This model keeps the project understandable and reduces operational complexity.
 - defaultLibraries: array of strings (optional)
 - defaultData: array of strings (optional)
 
-For the initial release, the only supported site setting is `baseUrl`, which is read from a top-level `site.json` file and emitted as a `<base href="...">` tag in the document head. Default behavior: if no output directory is explicitly configured, the app writes generated files to `<project-root>/target`. If a source tree is used, the default content root may be `<project-root>/src`; otherwise content may be read from the project root directly.
+For the initial release, the only supported site setting is `baseUrl`, which is read from a directory-scoped `site.config.json` file and emitted as a `<base href="...">` tag in the document head. The effective config for any page is inherited from the nearest ancestor directory that defines one. Default behavior: if no output directory is explicitly configured, the app writes generated files to `<project-root>/target`. If a source tree is used, the default content root may be `<project-root>/src`; otherwise content may be read from the project root directly.
 
 ### 11.2 ContentItem
 - id: string
