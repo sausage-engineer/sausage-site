@@ -25,7 +25,8 @@ The build output defaults to `<project-root>/target`.
 
 - `src/` contains Markdown content files (optional; the root can also be used directly)
 - `lib/` contains top-level library folders such as `bootstrap/`
-- `target/` is the generated static site output, with imported libraries copied into `target/lib/<library-name>/`
+- `data/` contains top-level data bundles such as `site-data/` or `content/` that hold static assets and JSON payloads copied into the generated site the same way libraries are
+- `target/` is the generated static site output, with imported libraries copied into `target/lib/<library-name>/` and imported data copied into `target/data/<bundle-name>/`
 
 Each Markdown file may include front matter like:
 
@@ -34,9 +35,11 @@ Each Markdown file may include front matter like:
 title: Welcome
 libraries:
   - bootstrap
+data:
+  - site-data
 apps:
   - todo
 ---
 ```
 
-This produces HTML with Bootstrap asset links and `data-app` mount points that JavaScript can target. When the page imports `bootstrap`, the entire `lib/bootstrap/` folder is copied into `target/lib/bootstrap/` before the page is generated.
+This produces HTML with Bootstrap asset links and `data-app` mount points that JavaScript can target. When the page imports `bootstrap` or `site-data`, the corresponding folder is copied into `target/lib/bootstrap/` or `target/data/site-data/` before the page is generated.

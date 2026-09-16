@@ -6,7 +6,7 @@ Sausage Site is a Java 25 static site generator for building content-driven webs
 
 The product generates a complete static site that can be deployed to any static host, such as GitHub Pages, Netlify, Cloudflare Pages, or any web server that serves HTML files. The application should be implemented as a Java 25 command-line tool with a simple, repeatable build and preview workflow. A popular Java Markdown library such as Flexmark is the preferred implementation choice for parsing and rendering Markdown content.
 
-Each page is a single Markdown file. A top-level `lib` directory contains top-level folders named for each library, such as `bootstrap/`, `fontawesome/`, or any other asset bundle. A page's front matter identifies which named libraries should be copied into the page's output directory and linked or included in the generated HTML. When a page imports a library, the entire library folder is copied into `target/lib/<library-name>/`, preserving the library's internal structure. There are no HTML templates or variable substitution features in the initial product. Each generated page is simply the rendered Markdown body placed into an HTML document that includes the configured library links and script tags.
+Each page is a single Markdown file. A top-level `lib` directory contains top-level folders named for each library, such as `bootstrap/`, `fontawesome/`, or any other asset bundle. A top-level `data` directory contains top-level folders named for each data bundle, such as `site-data/`, `content/`, or any other structured dataset. A page's front matter identifies which named libraries and data bundles should be copied into the page's output directory and linked or included in the generated HTML. When a page imports a library or data bundle, the entire corresponding folder is copied into `target/lib/<library-name>/` or `target/data/<bundle-name>/`, preserving the bundle's internal structure. There are no HTML templates or variable substitution features in the initial product. Each generated page is simply the rendered Markdown body placed into an HTML document that includes the configured library links and script tags.
 
 ## 2. Problem Statement
 
@@ -24,6 +24,7 @@ Sausage Site should provide a minimal but robust workflow:
 - Generate static HTML from standalone Markdown page files
 - Support Markdown-based authoring with front matter
 - Allow per-page asset selection from a top-level library registry
+- Allow per-page data bundle selection from a top-level data registry
 - Keep the build process deterministic and fast
 - Provide a local preview workflow for development
 - Produce deployable output with no runtime server requirements
@@ -97,6 +98,7 @@ Each page must be authored as a single Markdown file. Each content item may incl
 - category
 - draft status
 - libraries: a list of named library bundles to include on that page
+- data: a list of named data bundles to include on that page
 - apps: a list of app names that should be mounted in the generated HTML
 
 Example front matter:
@@ -106,6 +108,8 @@ title: Welcome
 slug: welcome
 libraries:
   - bootstrap
+data:
+  - site-data
 apps:
   - todo
   - calendar
@@ -119,20 +123,26 @@ The app must generate a standalone HTML document for each Markdown page. Generat
 - rendered body content from the Markdown file
 - stylesheet link tags for each selected library CSS bundle
 - script tags for each selected library JavaScript bundle
+- a copy of each selected data bundle under `target/data/<bundle-name>/` for browser or client-side access
 - app mount points for each named app in the front matter, represented as HTML div elements that JavaScript can target
 - optional metadata in the document head when provided by front matter
 - a generated filename and URL based on the page's slug or path
 
 Each app in the `apps` front matter must be converted into a placeholder div in the HTML output, so JavaScript can find and hydrate the app by name. A simple convention is to emit `div` elements with a `data-app` attribute such as `<div data-app="todo"></div>`. The app placeholders should be inserted into the page body alongside the rendered Markdown content.
 
-The resulting HTML document must be composed from the Markdown-rendered body plus the configured library asset references, without requiring HTML templates.
+The resulting HTML document must be composed from the Markdown-rendered body plus the configured library asset references and data bundle copies, without requiring HTML templates.
 
 ### 8.4 Library Registry
 The project must support a top-level `lib` directory that contains library folders. Each library is a self-contained folder, such as `lib/bootstrap/` or `lib/fontawesome/`. The folder may contain nested CSS, JavaScript, fonts, images, or other assets in any structure it needs.
 
 Bootstrap should be provided as a default library bundle in the initial product, and page front matter may reference it by name in the same way as any other library. When a page lists a named library in front matter, the build process must copy the entire corresponding library folder into `target/lib/<library-name>/` and add the appropriate HTML link/script tags to the generated document.
 
-### 8.5 Collections and Taxonomy
+### 8.5 Data Registry
+The project must support a top-level `data` directory that contains data bundles intended for static content assets and structured payloads. Each data bundle is a self-contained folder, such as `data/site-data/` or `data/content/`, and may contain JSON files, CSV files, YAML files, images, icons, or other static assets that are intended to be served alongside the site. The directory should behave the same way as `lib`: a named bundle is resolved from the top-level `data` directory and copied into `target/data/<bundle-name>/` when a page requests it in front matter.
+
+When a page lists a named data bundle in front matter, the build process must copy the corresponding folder into `target/data/<bundle-name>/` and make it available to the generated page using the same bundle naming convention as the library registry. Data bundles should be optional, page-scoped, and easy to wire into JavaScript or client-side applications without requiring a backend. The primary purpose of this folder is to hold static assets and `.json`-style data files that are consumed by the generated site at runtime.
+
+### 8.6 Collections and Taxonomy
 The app must support grouping content into logical collections such as:
 - posts
 - pages
@@ -141,7 +151,7 @@ The app must support grouping content into logical collections such as:
 
 This may be implemented as a basic collection model with automatic listing generation.
 
-### 8.6 Asset Handling
+### 8.7 Asset Handling
 The app must support copying static assets into the generated site, including:
 - images
 - CSS
@@ -149,14 +159,14 @@ The app must support copying static assets into the generated site, including:
 - fonts
 - favicon files
 
-Asset copying must respect page-local source and library configuration so each page receives the assets named in its front matter.
+Asset copying must respect page-local source, library configuration, and data bundle configuration so each page receives the assets named in its front matter.
 
-### 8.7 Build and Preview
+### 8.8 Build and Preview
 The app must provide at least two core commands:
 - build: generate static output
 - preview: run a local development server and rebuild on source changes
 
-### 8.8 Deployment Readiness
+### 8.9 Deployment Readiness
 The generated site must be deployable without requiring a running application server. Output should be static HTML/CSS/JS assets suitable for hosting on static providers.
 
 ## 9. Non-Functional Requirements
@@ -189,6 +199,7 @@ The generated site must be deployable without requiring a running application se
 - Front matter and metadata handling
 - Markdown renderer
 - Library asset resolver
+- Data bundle resolver
 - Asset pipeline
 - Site builder
 - Preview server
@@ -199,10 +210,11 @@ The app should follow a simple build-centric architecture:
 2. discover page Markdown files
 3. parse metadata and content
 4. resolve page-specific library folders from the `lib` directory
-5. copy the selected library folders into `target/lib/<library-name>/` and compute HTML tag references
-6. render Markdown into HTML
-7. assemble final page HTML without templates
-8. write generated output to the project `target` directory by default
+5. resolve page-specific data bundles from the `data` directory
+6. copy the selected library folders into `target/lib/<library-name>/` and the selected data bundles into `target/data/<bundle-name>/`
+7. render Markdown into HTML
+8. assemble final page HTML without templates
+9. write generated output to the project `target` directory by default
 
 This model keeps the project understandable and reduces operational complexity.
 
@@ -216,6 +228,7 @@ This model keeps the project understandable and reduces operational complexity.
 - sourceDir: string
 - nav: array of links
 - defaultLibraries: array of strings
+- defaultData: array of strings
 
 Default behavior: if no output directory is explicitly configured, the app writes generated files to `<project-root>/target`. If a source tree is used, the default content root may be `<project-root>/src`; otherwise content may be read from the project root directly.
 
@@ -233,6 +246,7 @@ Default behavior: if no output directory is explicitly configured, the app write
 - category: string
 - draft: boolean
 - libraries: array of strings
+- data: array of strings
 - apps: array of strings
 
 ### 11.3 LibraryBundle
@@ -241,15 +255,22 @@ Default behavior: if no output directory is explicitly configured, the app write
 - type: css | js | asset
 - files: array of file paths
 
-### 11.4 Asset
+### 11.4 DataBundle
+- name: string
+- path: string
+- kind: json | csv | yaml | text | asset
+- files: array of file paths
+
+### 11.5 Asset
 - sourcePath: string
 - targetPath: string
-- kind: image | css | js | font | other
+- kind: image | css | js | font | data | other
 
-### 11.5 PageRenderResult
+### 11.6 PageRenderResult
 - htmlBody: string
 - cssLinks: array of href values
 - jsSources: array of src values
+- dataPaths: array of bundle paths
 - appMounts: array of app names or placeholder selectors
 - outputPath: string
 
@@ -260,13 +281,14 @@ Default behavior: if no output directory is explicitly configured, the app write
 2. Add configuration file
 3. Add content files, optionally under a top-level `src` directory
 4. Add library folders under the top-level `lib` directory
-5. Run build
-6. Verify output is generated in `<project-root>/target`
+5. Add data bundles under the top-level `data` directory
+6. Run build
+7. Verify output is generated in `<project-root>/target`
 
 ### 12.2 Local Preview
 1. Run preview command
 2. Start local server
-3. Watch relevant Markdown, library, and configuration files for changes
+3. Watch relevant Markdown, library, data, and configuration files for changes
 4. Rebuild site automatically
 5. Refresh browser to inspect output
 
@@ -281,7 +303,9 @@ The MVP will be considered successful if:
 - a user can create a basic site configuration
 - a single Markdown file renders into a standalone HTML page
 - a page can declare one or more named libraries from the `lib` directory
-- the build command copies selected library folders into `target/lib/<library-name>/` and emits the correct HTML link/script tags
+- a page can declare one or more named data bundles from the `data` directory
+- the build command copies selected library folders into `target/lib/<library-name>/` and selected data bundles into `target/data/<bundle-name>/`
+- the build command emits the correct HTML link/script tags for libraries and serves data bundles alongside the output
 - the build output is written to `<project-root>/target` by default
 - a preview command serves the site locally
 - the output is deployable to a static hosting provider
