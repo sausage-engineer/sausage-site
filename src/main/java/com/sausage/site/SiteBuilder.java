@@ -28,7 +28,7 @@ public final class SiteBuilder {
         Path outputRoot = projectRoot.resolve("target");
         Files.createDirectories(outputRoot);
 
-        Path libraryRoot = projectRoot.resolve("library");
+        Path libraryRoot = projectRoot.resolve("lib");
         List<Path> markdownFiles = Files.walk(contentRoot)
                 .filter(path -> path.toString().endsWith(".md"))
                 .filter(path -> !path.startsWith(outputRoot))
@@ -139,12 +139,14 @@ public final class SiteBuilder {
     }
 
     private static List<Path> filesInLibraryOutput(Path outputDirectory, String libraryName, String type) {
-        Path libraryDir = outputDirectory.resolve("library").resolve(libraryName).resolve(type);
+        Path libraryDir = outputDirectory.resolve("lib").resolve(libraryName);
         if (!Files.exists(libraryDir)) {
             return List.of();
         }
         try {
-            return Files.walk(libraryDir)
+            Path typeDir = libraryDir.resolve(type);
+            Path scanRoot = Files.exists(typeDir) ? typeDir : libraryDir;
+            return Files.walk(scanRoot)
                     .filter(path -> !Files.isDirectory(path))
                     .filter(path -> path.getFileName().toString().toLowerCase().endsWith(type.equals("css") ? ".css" : ".js"))
                     .sorted()
@@ -155,16 +157,22 @@ public final class SiteBuilder {
     }
 
     private static void copyLibraryAssets(Path projectRoot, Path outputDirectory, String libraryName) throws IOException {
-        Path libraryRoot = projectRoot.resolve("library");
-        Path cssRoot = libraryRoot.resolve("css").resolve(libraryName);
-        Path jsRoot = libraryRoot.resolve("js").resolve(libraryName);
-        Path outputLibraryDir = outputDirectory.resolve("library").resolve(libraryName);
+        Path libraryRoot = projectRoot.resolve("lib").resolve(libraryName);
+        Path outputLibraryDir = outputDirectory.resolve("lib").resolve(libraryName);
 
-        if (Files.exists(cssRoot)) {
-            copyDirectory(cssRoot, outputLibraryDir.resolve("css"));
+        if (Files.exists(libraryRoot)) {
+            copyDirectory(libraryRoot, outputLibraryDir);
+            return;
         }
-        if (Files.exists(jsRoot)) {
-            copyDirectory(jsRoot, outputLibraryDir.resolve("js"));
+
+        Path legacyCssRoot = projectRoot.resolve("lib").resolve("css").resolve(libraryName);
+        Path legacyJsRoot = projectRoot.resolve("lib").resolve("js").resolve(libraryName);
+
+        if (Files.exists(legacyCssRoot)) {
+            copyDirectory(legacyCssRoot, outputLibraryDir.resolve("css"));
+        }
+        if (Files.exists(legacyJsRoot)) {
+            copyDirectory(legacyJsRoot, outputLibraryDir.resolve("js"));
         }
     }
 
