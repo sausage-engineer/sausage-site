@@ -25,8 +25,6 @@ public final class SiteBuilder {
             contentRoot = projectRoot;
         }
 
-        String baseUrl = resolveBaseUrl(projectRoot);
-
         Path outputRoot = projectRoot.resolve("target");
         Files.createDirectories(outputRoot);
 
@@ -42,6 +40,7 @@ public final class SiteBuilder {
 
         for (Path markdownFile : markdownFiles) {
             Page page = parsePage(markdownFile);
+            String baseUrl = resolveBaseUrl(contentRoot, markdownFile);
             String relativeInput = contentRoot.relativize(markdownFile).toString();
             String outputRelative = relativeInput.replaceFirst("\\.md$", ".html");
             Path outputFile = outputRoot.resolve(outputRelative);
@@ -135,8 +134,12 @@ public final class SiteBuilder {
         Thread.currentThread().join();
     }
 
-    private static String resolveBaseUrl(Path projectRoot) throws IOException {
-        Path current = projectRoot;
+    private static String resolveBaseUrl(Path contentRoot, Path markdownFile) throws IOException {
+        Path current = markdownFile.toAbsolutePath().normalize().getParent();
+        if (current == null) {
+            current = contentRoot.toAbsolutePath().normalize();
+        }
+
         while (current != null) {
             Path siteConfig = current.resolve("site.config.json");
             if (Files.exists(siteConfig)) {
@@ -148,7 +151,20 @@ public final class SiteBuilder {
                 }
                 return "/";
             }
+            if (current.equals(contentRoot.toAbsolutePath().normalize())) {
+                break;
+            }
             current = current.getParent();
+        }
+
+        Path fallbackConfig = contentRoot.resolve("site.config.json");
+        if (Files.exists(fallbackConfig)) {
+            String json = Files.readString(fallbackConfig, StandardCharsets.UTF_8);
+            Matcher matcher = Pattern.compile("\\\"baseUrl\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"\\\\])*)\\\"").matcher(json);
+            if (matcher.find()) {
+                String baseUrl = matcher.group(1).replace("\\/", "/").replace("\\\"", "\"");
+                return normalizeBaseUrl(baseUrl);
+            }
         }
         return "/";
     }
