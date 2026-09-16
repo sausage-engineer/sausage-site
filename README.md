@@ -24,8 +24,8 @@ The build output defaults to `<project-root>/target`.
 ## Project layout
 
 - `src/` contains Markdown content files (optional; the root can also be used directly)
-- `library/` contains named asset libraries such as Bootstrap
-- `target/` is the generated static site output
+- `lib/` contains top-level library folders such as `bootstrap/`
+- `target/` is the generated static site output, with imported libraries copied into `target/lib/<library-name>/`
 
 Each Markdown file may include front matter like:
 
@@ -39,4 +39,4 @@ apps:
 ---
 ```
 
-This produces HTML with Bootstrap asset links and `data-app` mount points that JavaScript can target.
+This produces HTML with Bootstrap asset links and `data-app` mount points that JavaScript can target. When the page imports `bootstrap`, the entire `lib/bootstrap/` folder is copied into `target/lib/bootstrap/` before the page is generated.

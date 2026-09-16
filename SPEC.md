@@ -6,7 +6,7 @@ Sausage Site is a Java 25 static site generator for building content-driven webs
 
 The product generates a complete static site that can be deployed to any static host, such as GitHub Pages, Netlify, Cloudflare Pages, or any web server that serves HTML files. The application should be implemented as a Java 25 command-line tool with a simple, repeatable build and preview workflow. A popular Java Markdown library such as Flexmark is the preferred implementation choice for parsing and rendering Markdown content.
 
-Each page is a single Markdown file. A top-level `library` directory contains named subdirectories such as `css`, `js`, and other asset groups. A page's front matter identifies which named libraries should be copied into the page's output directory and linked or included in the generated HTML. There are no HTML templates or variable substitution features in the initial product. Each generated page is simply the rendered Markdown body placed into an HTML document that includes the configured library links and script tags.
+Each page is a single Markdown file. A top-level `lib` directory contains top-level folders named for each library, such as `bootstrap/`, `fontawesome/`, or any other asset bundle. A page's front matter identifies which named libraries should be copied into the page's output directory and linked or included in the generated HTML. When a page imports a library, the entire library folder is copied into `target/lib/<library-name>/`, preserving the library's internal structure. There are no HTML templates or variable substitution features in the initial product. Each generated page is simply the rendered Markdown body placed into an HTML document that includes the configured library links and script tags.
 
 ## 2. Problem Statement
 
@@ -128,12 +128,9 @@ Each app in the `apps` front matter must be converted into a placeholder div in 
 The resulting HTML document must be composed from the Markdown-rendered body plus the configured library asset references, without requiring HTML templates.
 
 ### 8.4 Library Registry
-The project must support a top-level `library` directory that contains named asset bundles. Each bundle may be organized by type, including:
-- `library/css/<name>/...`
-- `library/js/<name>/...`
-- additional asset folders as needed
+The project must support a top-level `lib` directory that contains library folders. Each library is a self-contained folder, such as `lib/bootstrap/` or `lib/fontawesome/`. The folder may contain nested CSS, JavaScript, fonts, images, or other assets in any structure it needs.
 
-Bootstrap should be provided as a default library bundle in the initial product, and page front matter may reference it by name in the same way as any other library. When a page lists a named library in front matter, the build process must copy the corresponding files into the output directory for that page and add the appropriate HTML link/script tags to the generated document.
+Bootstrap should be provided as a default library bundle in the initial product, and page front matter may reference it by name in the same way as any other library. When a page lists a named library in front matter, the build process must copy the entire corresponding library folder into `target/lib/<library-name>/` and add the appropriate HTML link/script tags to the generated document.
 
 ### 8.5 Collections and Taxonomy
 The app must support grouping content into logical collections such as:
@@ -201,8 +198,8 @@ The app should follow a simple build-centric architecture:
 1. load configuration
 2. discover page Markdown files
 3. parse metadata and content
-4. resolve page-specific library asset bundles from the `library` directory
-5. copy selected assets to the output directory and compute HTML tag references
+4. resolve page-specific library folders from the `lib` directory
+5. copy the selected library folders into `target/lib/<library-name>/` and compute HTML tag references
 6. render Markdown into HTML
 7. assemble final page HTML without templates
 8. write generated output to the project `target` directory by default
@@ -262,7 +259,7 @@ Default behavior: if no output directory is explicitly configured, the app write
 1. Create a project directory
 2. Add configuration file
 3. Add content files, optionally under a top-level `src` directory
-4. Add library bundles under the top-level `library` directory
+4. Add library folders under the top-level `lib` directory
 5. Run build
 6. Verify output is generated in `<project-root>/target`
 
@@ -283,8 +280,8 @@ Default behavior: if no output directory is explicitly configured, the app write
 The MVP will be considered successful if:
 - a user can create a basic site configuration
 - a single Markdown file renders into a standalone HTML page
-- a page can declare one or more named libraries from the `library` directory
-- the build command copies selected library assets into the output directory and emits the correct HTML link/script tags
+- a page can declare one or more named libraries from the `lib` directory
+- the build command copies selected library folders into `target/lib/<library-name>/` and emits the correct HTML link/script tags
 - the build output is written to `<project-root>/target` by default
 - a preview command serves the site locally
 - the output is deployable to a static hosting provider
@@ -295,7 +292,7 @@ The MVP will be considered successful if:
 The MVP should prioritize the smallest useful, reliable version of the product:
 - single-file Markdown page support
 - simple front matter metadata
-- library-based asset selection from the top-level `library` directory
+- library-based asset selection from the top-level `lib` directory
 - static HTML generation without templates
 - local preview server
 - asset copying

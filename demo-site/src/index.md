@@ -12,5 +12,5 @@ apps:
 
 This page is generated from a single Markdown file.
 
-- It includes Bootstrap from the `library` directory.
+- It includes Bootstrap from the `lib/bootstrap` directory.
 - It also exposes JavaScript app mount points.
