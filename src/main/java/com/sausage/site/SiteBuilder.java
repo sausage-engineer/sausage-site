@@ -25,6 +25,8 @@ public final class SiteBuilder {
             contentRoot = projectRoot;
         }
 
+        String baseUrl = resolveBaseUrl(projectRoot);
+
         Path outputRoot = projectRoot.resolve("target");
         Files.createDirectories(outputRoot);
 
@@ -80,6 +82,7 @@ public final class SiteBuilder {
                     + "<head>\n"
                     + "  <meta charset=\"UTF-8\">\n"
                     + "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+                    + "  <base href=\"" + escapeHtml(baseUrl) + "\">\n"
                     + "  <title>" + escapeHtml(title) + "</title>\n"
                     + metadataHead
                     + cssLinks
@@ -130,6 +133,42 @@ public final class SiteBuilder {
         System.out.println("Preview server running at http://localhost:8080");
         System.out.println("Press Ctrl+C to stop.");
         Thread.currentThread().join();
+    }
+
+    private static String resolveBaseUrl(Path projectRoot) throws IOException {
+        Path siteConfig = projectRoot.resolve("site.json");
+        if (!Files.exists(siteConfig)) {
+            return "/";
+        }
+
+        String json = Files.readString(siteConfig, StandardCharsets.UTF_8);
+        Matcher matcher = Pattern.compile("\\\"baseUrl\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"\\\\])*)\\\"").matcher(json);
+        if (!matcher.find()) {
+            return "/";
+        }
+
+        String baseUrl = matcher.group(1).replace("\\/", "/").replace("\\\"", "\"");
+        return normalizeBaseUrl(baseUrl);
+    }
+
+    private static String normalizeBaseUrl(String baseUrl) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return "/";
+        }
+        String normalized = baseUrl.trim();
+        if (!normalized.startsWith("/")) {
+            if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+                if (!normalized.endsWith("/")) {
+                    normalized += "/";
+                }
+                return normalized;
+            }
+            normalized = "/" + normalized;
+        }
+        if (!normalized.endsWith("/") && !normalized.contains("://")) {
+            normalized += "/";
+        }
+        return normalized;
     }
 
     private static String buildHeadMetadata(Map<String, String> metadata) {

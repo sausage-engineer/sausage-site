@@ -76,17 +76,23 @@ A person responsible for configuration, asset library management, navigation, an
 ## 8. Functional Requirements
 
 ### 8.1 Site Configuration
-The app must support a site configuration file containing:
-- site name
-- base URL
-- description
-- default language
-- navigation links
-- output directory
-- source directories
-- optional default asset libraries
+The app must support a top-level `site.json` file containing site-level configuration. For the initial release, the only required or supported configuration key is `baseUrl`; all other fields are optional and may be introduced later.
+
+Supported configuration:
+- `baseUrl`: the site's base URL, used to emit the document `<base href="...">` tag in the HTML `<head>`
+
+If `site.json` is absent or `baseUrl` is not configured, the app assumes the site base is "/". The generated HTML should include a `<base href="/">` tag in the document head when the default is used, and `<base href="https://example.com/">` when a custom base is configured.
+
+This is not a `<header>` tag; the correct HTML element is `<base>` placed inside `<head>`.
 
 By default, the generated output should be written to a `target` directory under the input project root. If a source directory is used, a `src` directory may be used as the root for Markdown content; otherwise the app may accept content directly from the project root.
+
+Example `site.json`:
+```json
+{
+  "baseUrl": "/docs/"
+}
+```
 
 ### 8.2 Content Authoring
 Each page must be authored as a single Markdown file. Each content item may include front matter metadata such as:
@@ -221,16 +227,16 @@ This model keeps the project understandable and reduces operational complexity.
 ## 11. Data Model
 
 ### 11.1 SiteConfig
-- name: string
-- baseUrl: string
-- description: string
-- outputDir: string
-- sourceDir: string
-- nav: array of links
-- defaultLibraries: array of strings
-- defaultData: array of strings
+- baseUrl: string, default "/"
+- name: string (optional)
+- description: string (optional)
+- outputDir: string (optional)
+- sourceDir: string (optional)
+- nav: array of links (optional)
+- defaultLibraries: array of strings (optional)
+- defaultData: array of strings (optional)
 
-Default behavior: if no output directory is explicitly configured, the app writes generated files to `<project-root>/target`. If a source tree is used, the default content root may be `<project-root>/src`; otherwise content may be read from the project root directly.
+For the initial release, the only supported site setting is `baseUrl`, which is read from a top-level `site.json` file and emitted as a `<base href="...">` tag in the document head. Default behavior: if no output directory is explicitly configured, the app writes generated files to `<project-root>/target`. If a source tree is used, the default content root may be `<project-root>/src`; otherwise content may be read from the project root directly.
 
 ### 11.2 ContentItem
 - id: string

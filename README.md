@@ -21,11 +21,20 @@ A Java 25 static site generator that turns Markdown files into simple HTML pages
 
 The build output defaults to `<project-root>/target`.
 
+A top-level `site.json` file can configure site-level defaults. For now, the only supported key is `baseUrl`, which is emitted as a `<base href="...">` tag in the HTML `<head>`. If omitted, the app treats the base as "/".
+
+```json
+{
+  "baseUrl": "/docs/"
+}
+```
+
 ## Project layout
 
 - `src/` contains Markdown content files (optional; the root can also be used directly)
 - `lib/` contains top-level library folders such as `bootstrap/`
 - `data/` contains top-level data bundles such as `site-data/` or `content/` that hold static assets and JSON payloads copied into the generated site the same way libraries are
+- `site.json` contains top-level site settings; for now, only `baseUrl` is used
 - `target/` is the generated static site output, with imported libraries copied into `target/lib/<library-name>/` and imported data copied into `target/data/<bundle-name>/`
 
 Each Markdown file may include front matter like:
