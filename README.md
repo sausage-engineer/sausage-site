@@ -27,17 +27,17 @@ Markdown files at the project root belong to a special `main` silo. They resolve
 
 A directory may contain a `site.config.json` file to configure that subtree. This works like a parent/child inheritance model: a page inherits the nearest ancestor config, and a child directory can override it with its own `site.config.json`.
 
-For now, the only supported key is `baseUrl`, which is emitted as a `<base href="...">` tag in the HTML `<head>`. If omitted, the app treats the base as "/". In silo mode, the recommended value is the folder path of the silo itself, such as `/pwa/my-app/`.
+For now, the only supported key is `baseUrl`, which is emitted as a `<base href="...">` tag in the HTML `<head>`. If omitted, the app treats the base as "/". In silo mode, the recommended value is the folder path of the silo itself, such as `/my-app/`.
 
 ```json
 {
-  "baseUrl": "/pwa/my-app/"
+  "baseUrl": "/my-app/"
 }
 ```
 
 ## Project layout
 
-- `pwa/my-app/` or another top-level folder is a silo root; each silo is a standalone sub-site
+- `my-app/` or another top-level folder is a silo root; each silo is a standalone sub-site
 - each silo may contain its own `lib/` with top-level library folders such as `bootstrap/`
 - each silo may contain its own `data/` with top-level data bundles such as `site-data/` or `content/`
 - `site.config.json` configures a directory and its subfolders; nearest config wins

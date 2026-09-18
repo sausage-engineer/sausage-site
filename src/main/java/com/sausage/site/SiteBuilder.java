@@ -20,37 +20,34 @@ public final class SiteBuilder {
     }
 
     public static void build(Path projectRoot) throws IOException {
-        Path contentRoot = projectRoot.resolve("src");
-        if (!Files.exists(contentRoot)) {
-            contentRoot = projectRoot;
-        }
-
-        Path outputRoot = projectRoot.resolve("target");
+        Path normalizedProjectRoot = projectRoot.toAbsolutePath().normalize();
+        Path outputRoot = normalizedProjectRoot.resolve("target");
+        cleanOutputDirectory(outputRoot);
         Files.createDirectories(outputRoot);
 
-        Path libraryRoot = projectRoot.resolve("lib");
-        Path dataRoot = projectRoot.resolve("data");
-        List<Path> markdownFiles = Files.walk(contentRoot)
+        List<Path> markdownFiles = Files.walk(normalizedProjectRoot)
                 .filter(path -> path.toString().endsWith(".md"))
                 .filter(path -> !path.startsWith(outputRoot))
-                .filter(path -> !path.startsWith(libraryRoot))
-                .filter(path -> !path.startsWith(dataRoot))
+                .filter(path -> !path.startsWith(normalizedProjectRoot.resolve("target")))
+                .filter(path -> !path.startsWith(normalizedProjectRoot.resolve("lib")))
+                .filter(path -> !path.startsWith(normalizedProjectRoot.resolve("data")))
                 .sorted()
                 .toList();
 
         for (Path markdownFile : markdownFiles) {
+            SiloContext silo = resolveSiloContext(normalizedProjectRoot, markdownFile);
             Page page = parsePage(markdownFile);
-            String baseUrl = resolveBaseUrl(contentRoot, markdownFile);
-            String relativeInput = contentRoot.relativize(markdownFile).toString();
+            String baseUrl = resolveBaseUrl(normalizedProjectRoot, markdownFile);
+            String relativeInput = silo.contentRoot().relativize(markdownFile).toString();
             String outputRelative = relativeInput.replaceFirst("\\.md$", ".html");
-            Path outputFile = outputRoot.resolve(outputRelative);
+            Path outputFile = silo.outputRoot().resolve(outputRelative);
             Files.createDirectories(outputFile.getParent());
 
             StringBuilder cssLinks = new StringBuilder();
             StringBuilder jsTags = new StringBuilder();
 
             for (String libraryName : page.libraries()) {
-                copyLibraryAssets(projectRoot, outputFile.getParent(), libraryName);
+                copyLibraryAssets(silo.siloRoot(), outputFile.getParent(), libraryName);
                 List<Path> cssFiles = filesInLibraryOutput(outputFile.getParent(), libraryName, "css");
                 for (Path cssFile : cssFiles) {
                     String href = outputFile.getParent().relativize(cssFile).toString().replace('\\', '/');
@@ -64,7 +61,7 @@ public final class SiteBuilder {
             }
 
             for (String dataName : page.data()) {
-                copyDataBundle(projectRoot, outputFile.getParent(), dataName);
+                copyDataBundle(silo.siloRoot(), outputFile.getParent(), dataName);
             }
 
             String renderedBody = renderMarkdown(page.body());
@@ -134,10 +131,10 @@ public final class SiteBuilder {
         Thread.currentThread().join();
     }
 
-    private static String resolveBaseUrl(Path contentRoot, Path markdownFile) throws IOException {
+    private static String resolveBaseUrl(Path projectRoot, Path markdownFile) throws IOException {
         Path current = markdownFile.toAbsolutePath().normalize().getParent();
         if (current == null) {
-            current = contentRoot.toAbsolutePath().normalize();
+            current = projectRoot.toAbsolutePath().normalize();
         }
 
         while (current != null) {
@@ -151,13 +148,13 @@ public final class SiteBuilder {
                 }
                 return "/";
             }
-            if (current.equals(contentRoot.toAbsolutePath().normalize())) {
+            if (current.equals(projectRoot.toAbsolutePath().normalize())) {
                 break;
             }
             current = current.getParent();
         }
 
-        Path fallbackConfig = contentRoot.resolve("site.config.json");
+        Path fallbackConfig = projectRoot.resolve("site.config.json");
         if (Files.exists(fallbackConfig)) {
             String json = Files.readString(fallbackConfig, StandardCharsets.UTF_8);
             Matcher matcher = Pattern.compile("\\\"baseUrl\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"\\\\])*)\\\"").matcher(json);
@@ -219,8 +216,8 @@ public final class SiteBuilder {
         }
     }
 
-    private static void copyLibraryAssets(Path projectRoot, Path outputDirectory, String libraryName) throws IOException {
-        Path libraryRoot = projectRoot.resolve("lib").resolve(libraryName);
+    private static void copyLibraryAssets(Path siloRoot, Path outputDirectory, String libraryName) throws IOException {
+        Path libraryRoot = siloRoot.resolve("lib").resolve(libraryName);
         Path outputLibraryDir = outputDirectory.resolve("lib").resolve(libraryName);
 
         if (Files.exists(libraryRoot)) {
@@ -228,8 +225,8 @@ public final class SiteBuilder {
             return;
         }
 
-        Path legacyCssRoot = projectRoot.resolve("lib").resolve("css").resolve(libraryName);
-        Path legacyJsRoot = projectRoot.resolve("lib").resolve("js").resolve(libraryName);
+        Path legacyCssRoot = siloRoot.resolve("lib").resolve("css").resolve(libraryName);
+        Path legacyJsRoot = siloRoot.resolve("lib").resolve("js").resolve(libraryName);
 
         if (Files.exists(legacyCssRoot)) {
             copyDirectory(legacyCssRoot, outputLibraryDir.resolve("css"));
@@ -239,12 +236,26 @@ public final class SiteBuilder {
         }
     }
 
-    private static void copyDataBundle(Path projectRoot, Path outputDirectory, String dataName) throws IOException {
-        Path dataRoot = projectRoot.resolve("data").resolve(dataName);
+    private static void copyDataBundle(Path siloRoot, Path outputDirectory, String dataName) throws IOException {
+        Path dataRoot = siloRoot.resolve("data").resolve(dataName);
         if (!Files.exists(dataRoot)) {
             return;
         }
         copyDirectory(dataRoot, outputDirectory.resolve("data").resolve(dataName));
+    }
+
+    private static void cleanOutputDirectory(Path outputRoot) throws IOException {
+        if (!Files.exists(outputRoot)) {
+            return;
+        }
+        try (var stream = Files.walk(outputRoot)) {
+            var paths = stream.sorted(Comparator.reverseOrder()).toList();
+            for (Path path : paths) {
+                if (!path.equals(outputRoot)) {
+                    Files.deleteIfExists(path);
+                }
+            }
+        }
     }
 
     private static void copyDirectory(Path source, Path target) throws IOException {
@@ -410,6 +421,75 @@ public final class SiteBuilder {
         return "application/octet-stream";
     }
 
+    private static SiloContext resolveSiloContext(Path projectRoot, Path markdownFile) {
+        Path file = markdownFile.toAbsolutePath().normalize();
+        Path project = projectRoot.toAbsolutePath().normalize();
+        Path relative = project.relativize(file);
+        Path siloRoot = project;
+        Path contentRoot = project;
+
+        int srcIndex = findSegmentIndex(relative, "src");
+        if (srcIndex >= 0) {
+            Path subPath = relative.subpath(0, srcIndex);
+            siloRoot = project.resolve(subPath).normalize();
+            contentRoot = project.resolve(subPath).resolve("src").normalize();
+        } else {
+            Path current = file.getParent();
+            Path bestRoot = project;
+            while (current != null && current.startsWith(project)) {
+                if (Files.exists(current.resolve("site.config.json"))
+                        || Files.exists(current.resolve("lib"))
+                        || Files.exists(current.resolve("data"))) {
+                    bestRoot = current;
+                }
+                if (current.equals(project)) {
+                    break;
+                }
+                current = current.getParent();
+            }
+            siloRoot = bestRoot;
+            if (siloRoot.equals(project)) {
+                contentRoot = project.resolve("src");
+                if (!Files.exists(contentRoot)) {
+                    contentRoot = project;
+                }
+            } else {
+                contentRoot = siloRoot.resolve("src");
+                if (!Files.exists(contentRoot)) {
+                    contentRoot = siloRoot;
+                }
+            }
+        }
+
+        String siloName = resolveSiloName(project, siloRoot);
+        Path outputRoot = project.resolve("target").resolve(siloName).normalize();
+        return new SiloContext(siloRoot, contentRoot, outputRoot);
+    }
+
+    private static int findSegmentIndex(Path path, String segmentName) {
+        if (path == null) {
+            return -1;
+        }
+        for (int i = 0; i < path.getNameCount(); i++) {
+            if (segmentName.equals(path.getName(i).toString())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static String resolveSiloName(Path projectRoot, Path siloRoot) {
+        Path relative = projectRoot.toAbsolutePath().normalize().relativize(siloRoot.toAbsolutePath().normalize());
+        String relativeName = relative.toString().replace('\\', '/');
+        if (relativeName.isBlank() || relativeName.equals(".")) {
+            return "main";
+        }
+        return relativeName;
+    }
+
     public record Page(String body, Map<String, String> metadata, List<String> libraries, List<String> data, List<String> apps) {
+    }
+
+    private record SiloContext(Path siloRoot, Path contentRoot, Path outputRoot) {
     }
 }
