@@ -41,7 +41,6 @@ public final class SiteBuilder {
         for (Path markdownFile : markdownFiles) {
             SiloContext silo = resolveSiloContext(normalizedProjectRoot, markdownFile);
             Page page = parsePage(markdownFile);
-            String baseUrl = resolveBaseUrl(normalizedProjectRoot, markdownFile);
             String relativeInput = silo.siloRoot().relativize(markdownFile).toString();
             String outputRelative = relativeInput.replaceFirst("\\.md$", ".html");
             Path outputFile = silo.outputRoot().resolve(outputRelative);
@@ -82,7 +81,6 @@ public final class SiteBuilder {
                     + "<head>\n"
                     + "  <meta charset=\"UTF-8\">\n"
                     + "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
-                    + "  <base href=\"" + escapeHtml(baseUrl) + "\">\n"
                     + "  <title>" + escapeHtml(title) + "</title>\n"
                     + metadataHead
                     + cssLinks
@@ -133,61 +131,6 @@ public final class SiteBuilder {
         System.out.println("Preview server running at http://localhost:8080");
         System.out.println("Press Ctrl+C to stop.");
         Thread.currentThread().join();
-    }
-
-    private static String resolveBaseUrl(Path projectRoot, Path markdownFile) throws IOException {
-        Path current = markdownFile.toAbsolutePath().normalize().getParent();
-        if (current == null) {
-            current = projectRoot.toAbsolutePath().normalize();
-        }
-
-        while (current != null) {
-            Path siteConfig = current.resolve("site.config.json");
-            if (Files.exists(siteConfig)) {
-                String json = Files.readString(siteConfig, StandardCharsets.UTF_8);
-                Matcher matcher = Pattern.compile("\\\"baseUrl\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"\\\\])*)\\\"").matcher(json);
-                if (matcher.find()) {
-                    String baseUrl = matcher.group(1).replace("\\/", "/").replace("\\\"", "\"");
-                    return normalizeBaseUrl(baseUrl);
-                }
-                return "/";
-            }
-            if (current.equals(projectRoot.toAbsolutePath().normalize())) {
-                break;
-            }
-            current = current.getParent();
-        }
-
-        Path fallbackConfig = projectRoot.resolve("site.config.json");
-        if (Files.exists(fallbackConfig)) {
-            String json = Files.readString(fallbackConfig, StandardCharsets.UTF_8);
-            Matcher matcher = Pattern.compile("\\\"baseUrl\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"\\\\])*)\\\"").matcher(json);
-            if (matcher.find()) {
-                String baseUrl = matcher.group(1).replace("\\/", "/").replace("\\\"", "\"");
-                return normalizeBaseUrl(baseUrl);
-            }
-        }
-        return "/";
-    }
-
-    private static String normalizeBaseUrl(String baseUrl) {
-        if (baseUrl == null || baseUrl.isBlank()) {
-            return "/";
-        }
-        String normalized = baseUrl.trim();
-        if (!normalized.startsWith("/")) {
-            if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
-                if (!normalized.endsWith("/")) {
-                    normalized += "/";
-                }
-                return normalized;
-            }
-            normalized = "/" + normalized;
-        }
-        if (!normalized.endsWith("/") && !normalized.contains("://")) {
-            normalized += "/";
-        }
-        return normalized;
     }
 
     private static String buildHeadMetadata(Map<String, String> metadata) {

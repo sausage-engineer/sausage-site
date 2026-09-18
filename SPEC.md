@@ -8,7 +8,7 @@ The product generates a complete static site that can be deployed to any static 
 
 The primary site structure is a collection of top-level siloed sub-sites. Each silo is a self-contained sub-site rooted at a top-level folder under `src/`, such as `src/my-app/`, `src/docs/`, or `src/showcase/`. Each page within a silo references only the bundles it needs from the shared package registries in the project root: `lib/` and `data/`. The project root holds the package repositories that supply named libraries and data bundles; the generated site copies selected bundles into `target/lib/<library-name>/` and `target/data/<bundle-name>/` inside the silo output. This design supports collections of PWAs or static sub-sites that are isolated, independently deployable, and able to pull in shared assets without duplicating their source trees inside each silo.
 
-Markdown files at the project root are treated as belonging to a special `main` silo under `src/`. Their `lib` and `data` references resolve against the root-level package repositories `lib/` and `data/`, and their generated output is placed under `target/main/...` with the base URL configured as `/` or the root-level `site.config.json` value. This lets the project homepage or shared content live alongside the silo folders while still keeping a single shared asset registry.
+Markdown files at the project root are treated as belonging to a special `main` silo under `src/`. Their `lib` and `data` references resolve against the root-level package repositories `lib/` and `data/`, and their generated output is placed under `target/main/...`. This lets the project homepage or shared content live alongside the silo folders while still keeping a single shared asset registry.
 
 Each page is a single Markdown file. The project root contains package repositories: `lib/` stores top-level library folders such as `bootstrap/`, `fontawesome/`, or any other asset bundle, while `data/` stores top-level data bundles such as `site-data/`, `content/`, or any other structured dataset. A page's front matter identifies which named libraries and data bundles should be copied into the page's output directory and linked or included in the generated HTML. When a page imports a library or data bundle, the entire corresponding folder is copied into the output path for the current silo, preserving the bundle's internal structure. There are no HTML templates or variable substitution features in the initial product. Each generated page is simply the rendered Markdown body placed into an HTML document that includes the configured library links and script tags.
 
@@ -79,35 +79,17 @@ A person responsible for configuration, asset library management, navigation, an
 
 ## 8. Functional Requirements
 
-### 8.1 Site Configuration
-The app must support a directory-scoped configuration file named `site.config.json`. Any directory may contain this file, and the file configures that directory and all descendant directories unless a deeper directory provides its own `site.config.json`.
+### 8.1 Site Layout
+The app uses a fixed root layout with four canonical top-level directories: `src/`, `lib/`, `data/`, and `target/`. `src/` contains one or more silo folders and the Markdown pages they own. `lib/` and `data/` act as shared package repositories that can be referenced by any silo during the build. `target/` is generated output and contains the selected library and data packages copied into the appropriate silo output path.
 
-This provides a simple inheritance model for site subtrees such as PWA-specific folders or content groups. A child directory config overrides the parent config for its subtree, and the effective configuration for a page is the nearest ancestor config.
-
-Supported configuration for the initial release:
-- `baseUrl`: the site's base URL for that subtree, used to emit the document `<base href="...">` tag in the HTML `<head>`
-
-If no config file is found in the page's ancestry, the app assumes the site base is "/". The generated HTML should include a `<base href="/">` tag in the document head when the default is used, and `<base href="https://example.com/">` when a custom base is configured.
-
-This is not a `<header>` tag; the correct HTML element is `<base>` placed inside `<head>`.
-
-By default, the generated output should be written to a `target` directory under the input project root. If a source directory is used, a `src` directory may be used as the root for Markdown content; otherwise the app may accept content directly from the project root.
-
-Example directory config:
-```json
-{
-  "baseUrl": "/pwa/my-app/"
-}
-```
-
-A subdirectory may override this value with another `site.config.json` file if it needs a different base URL or behavior.
+By default, the generated output should be written to a `target` directory under the input project root. The application should treat `src/` as the canonical source root when present and otherwise allow direct page discovery from the project root.
 
 #### 8.1.1 Siloed Sub-Site Model
 The website is intended to be a collection of independent top-level silos. Each silo represents a distinct deployable sub-site, such as a PWA, a docs surface, or a marketing landing page, and sits at its own top-level folder under `src/`. The project root has four canonical top-level directories: `src/`, `lib/`, `data/`, and `target/`. `src/` contains the silo folders and markdown pages, while `lib/` and `data/` act like package repositories from which any silo may pull shared bundles during the build. `target/` is generated output and contains the selected library and data packages copied into the appropriate silo output path.
 
-Markdown files at the project root are treated as part of a special `main` silo under `src/`. They may reference `lib` and `data` bundles from the shared repositories at the root, even though they are not under a nested subfolder. The `main` silo uses the root-level config and predictable output path `target/main/...`, which keeps the site landing page or shared content consistent with the rest of the silo model without creating per-silo source copies of asset packages.
+Markdown files at the project root are treated as part of a special `main` silo under `src/`. They may reference `lib` and `data` bundles from the shared repositories at the root, even though they are not under a nested subfolder. The `main` silo uses the predictable output path `target/main/...`, which keeps the site landing page or shared content consistent with the rest of the silo model without creating per-silo source copies of asset packages.
 
-This model keeps each sub-site self-contained at output time: the build must resolve libraries and data bundles from the shared package repositories only, copy them into the current silo's output folder, and keep the generated HTML scoped to that silo's base URL. Source trees for silos stay under `src/`; the `lib` and `data` directories are never created within each silo's source tree. They are repository-like package stores consumed as part of the build process.
+This model keeps each sub-site self-contained at output time: the build must resolve libraries and data bundles from the shared package repositories only, copy them into the current silo's output folder, and keep the generated HTML scoped to that silo's output path. Source trees for silos stay under `src/`; the `lib` and `data` directories are never created within each silo's source tree. They are repository-like package stores consumed as part of the build process.
 
 This is especially useful for multi-PWA deployments where each app should have its own copy of all assets it requires at runtime, but where the authoring and package management stay centralized in root-level `lib` and `data` repositories. A silo may still contain nested pages and child directories under `src/<silo>/`; the top-level silo folder is the logical boundary for the URL and asset ownership.
 
@@ -156,12 +138,12 @@ Each app in the `apps` front matter must be converted into a placeholder div in 
 The resulting HTML document must be composed from the Markdown-rendered body plus the configured library asset references and data bundle copies, without requiring HTML templates.
 
 ### 8.4 Library Registry
-The project must support a silo-scoped `lib` directory that contains library folders. Each library is a self-contained folder, such as `pwa/my-app/lib/bootstrap/` or `docs/lib/fontawesome/`. The folder may contain nested CSS, JavaScript, fonts, images, or other assets in any structure it needs.
+The project must support a root-level `lib` directory that contains library folders. Each library is a self-contained folder, such as `lib/bootstrap/` or `lib/fontawesome/`. The folder may contain nested CSS, JavaScript, fonts, images, or other assets in any structure it needs.
 
 Bootstrap should be provided as a default library bundle in the initial product, and page front matter may reference it by name in the same way as any other library. When a page lists a named library in front matter, the build process must copy the entire corresponding library folder into `target/<silo>/lib/<library-name>/` and add the appropriate HTML link/script tags to the generated document.
 
 ### 8.5 Data Registry
-The project must support a silo-scoped `data` directory that contains data bundles intended for static content assets and structured payloads. Each data bundle is a self-contained folder, such as `pwa/my-app/data/site-data/` or `docs/data/content/`, and may contain JSON files, CSV files, YAML files, images, icons, or other static assets that are intended to be served alongside the site. The directory should behave the same way as `lib`: a named bundle is resolved from the current silo's `data` directory and copied into `target/<silo>/data/<bundle-name>/` when a page requests it in front matter.
+The project must support a root-level `data` directory that contains data bundles intended for static content assets and structured payloads. Each data bundle is a self-contained folder, such as `data/site-data/` or `data/content/`, and may contain JSON files, CSV files, YAML files, images, icons, or other static assets that are intended to be served alongside the site. The directory should behave the same way as `lib`: a named bundle is resolved from the shared root `data` repository and copied into `target/<silo>/data/<bundle-name>/` when a page requests it in front matter.
 
 When a page lists a named data bundle in front matter, the build process must copy the corresponding folder into `target/<silo>/data/<bundle-name>/` and make it available to the generated page using the same bundle naming convention as the library registry. Data bundles should be optional, page-scoped, and easy to wire into JavaScript or client-side applications without requiring a backend. The primary purpose of this folder is to hold static assets and `.json`-style data files that are consumed by the generated site at runtime.
 
@@ -243,17 +225,14 @@ This model keeps the project understandable and reduces operational complexity.
 
 ## 11. Data Model
 
-### 11.1 SiteConfig
-- baseUrl: string, default "/"
-- name: string (optional)
-- description: string (optional)
-- outputDir: string (optional)
-- sourceDir: string (optional)
-- nav: array of links (optional)
-- defaultLibraries: array of strings (optional)
-- defaultData: array of strings (optional)
+### 11.1 SiteLayout
+- srcRoot: string
+- libRoot: string
+- dataRoot: string
+- outputRoot: string
+- siloName: string
 
-For the initial release, the only supported site setting is `baseUrl`, which is read from a directory-scoped `site.config.json` file and emitted as a `<base href="...">` tag in the document head. The effective config for any page is inherited from the nearest ancestor directory that defines one. Default behavior: if no output directory is explicitly configured, the app writes generated files to `<project-root>/target`. If a source tree is used, the default content root may be `<project-root>/src`; otherwise content may be read from the project root directly.
+The project uses a fixed directory layout: `src/` stores silo content, `lib/` and `data/` are package repositories, and `target/` holds generated output. There is no per-directory configuration file in the initial product.
 
 ### 11.2 ContentItem
 - id: string
@@ -301,8 +280,8 @@ For the initial release, the only supported site setting is `baseUrl`, which is 
 
 ### 12.1 Initial Setup
 1. Create a project directory
-2. Add configuration file
-3. Add content files, optionally under a top-level `src` directory
+2. Create `src/`, `lib/`, and `data/` directories
+3. Add content files under top-level silo folders in `src/`
 4. Add library folders under the top-level `lib` directory
 5. Add data bundles under the top-level `data` directory
 6. Run build
@@ -311,7 +290,7 @@ For the initial release, the only supported site setting is `baseUrl`, which is 
 ### 12.2 Local Preview
 1. Run preview command
 2. Start local server
-3. Watch relevant Markdown, library, data, and configuration files for changes
+3. Watch relevant Markdown, library, and data files for changes
 4. Rebuild site automatically
 5. Refresh browser to inspect output
 
@@ -323,16 +302,16 @@ For the initial release, the only supported site setting is `baseUrl`, which is 
 ## 13. Acceptance Criteria
 
 The MVP will be considered successful if:
-- a user can create a basic site configuration
+- a user can create a root `src/`, `lib/`, and `data/` layout
 - a single Markdown file renders into a standalone HTML page
 - a page can declare one or more named libraries from the `lib` directory
 - a page can declare one or more named data bundles from the `data` directory
-- the build command copies selected library folders into `target/lib/<library-name>/` and selected data bundles into `target/data/<bundle-name>/`
+- the build command copies selected library folders into `target/<silo>/lib/<library-name>/` and selected data bundles into `target/<silo>/data/<bundle-name>/`
 - the build command emits the correct HTML link/script tags for libraries and serves data bundles alongside the output
 - the build output is written to `<project-root>/target` by default
 - a preview command serves the site locally
 - the output is deployable to a static hosting provider
-- invalid configuration or content yields a clear error
+- invalid content yields a clear error
 
 ## 14. Minimum Viable Product (MVP)
 
@@ -350,7 +329,7 @@ This is enough to validate the product’s value before expanding features.
 
 ### Phase 1: MVP
 - project scaffold
-- config loading
+- root `src/lib/data/target` layout validation
 - Markdown rendering
 - library asset pipeline
 - build command
