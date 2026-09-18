@@ -21,9 +21,9 @@ A Java 25 static site generator that turns Markdown files into simple HTML pages
 
 The build output defaults to `<project-root>/target`.
 
-The site is treated as a collection of top-level silos. Each silo is a self-contained sub-site rooted at its own top-level folder, such as `pwa/my-app/`, `docs/`, or `marketing/`. Each silo can have its own `lib/` and `data/` directories, and the base URL for that silo is the URL path of that top-level folder. This keeps multiple PWAs or static sub-sites isolated from each other while allowing each one to carry the assets it needs.
+The site is treated as a collection of top-level silos. Each silo is a self-contained sub-site rooted at its own top-level folder under `src/`, such as `src/my-app/`, `src/docs/`, or `src/marketing/`. The project root contains the shared package repositories `lib/` and `data/`, which supply named libraries and data bundles that any silo can pull in during the build. The base URL for each silo is the URL path of the top-level folder under `src/`, and generated output lands under `target/<silo>/...` with copied library and data bundles inside that silo's output tree.
 
-Markdown files at the project root belong to a special `main` silo. They resolve `lib` and `data` references against a root-level `main/lib` and `main/data` layout, and they compile into `target/main/...` with the root config's base URL. This makes the root landing page behave like any other silo without creating a shared global asset registry.
+Markdown files at the project root belong to a special `main` silo under `src/`. They resolve `lib` and `data` references against the shared root repositories, and they compile into `target/main/...` with the root config's base URL. This keeps the root landing page aligned with the silo model without creating per-silo copies of the asset package repositories.
 
 A directory may contain a `site.config.json` file to configure that subtree. This works like a parent/child inheritance model: a page inherits the nearest ancestor config, and a child directory can override it with its own `site.config.json`.
 
@@ -37,9 +37,8 @@ For now, the only supported key is `baseUrl`, which is emitted as a `<base href=
 
 ## Project layout
 
-- `my-app/` or another top-level folder is a silo root; each silo is a standalone sub-site
-- each silo may contain its own `lib/` with top-level library folders such as `bootstrap/`
-- each silo may contain its own `data/` with top-level data bundles such as `site-data/` or `content/`
+- `src/my-app/` or another top-level folder under `src/` is a silo root; each silo is a standalone sub-site
+- the project root contains shared package repositories: `lib/` and `data/` hold named library/data bundles such as `bootstrap/` or `site-data/`
 - `site.config.json` configures a directory and its subfolders; nearest config wins
 - `target/` is the generated static site output, with imported libraries copied into `target/<silo>/lib/<library-name>/` and imported data copied into `target/<silo>/data/<bundle-name>/`
 

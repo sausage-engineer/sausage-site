@@ -6,4 +6,4 @@ libraries:
 
 # About
 
-This silo is self-contained and lives at the project root.
+This silo is self-contained and lives under `src/my-app`.

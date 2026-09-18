@@ -1,5 +1,5 @@
 ---
-title: Main Site
+title: My App
 author: Sausage Engineer
 libraries:
   - bootstrap
@@ -9,6 +9,6 @@ apps:
   - todo
 ---
 
-# Main Site
+# My App
 
-This page belongs to the special `main` silo.
+This page lives in the root-level `my-app` silo.
