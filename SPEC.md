@@ -6,7 +6,11 @@ Sausage Site is a Java 25 static site generator for building content-driven webs
 
 The product generates a complete static site that can be deployed to any static host, such as GitHub Pages, Netlify, Cloudflare Pages, or any web server that serves HTML files. The application should be implemented as a Java 25 command-line tool with a simple, repeatable build and preview workflow. A popular Java Markdown library such as Flexmark is the preferred implementation choice for parsing and rendering Markdown content.
 
-Each page is a single Markdown file. A top-level `lib` directory contains top-level folders named for each library, such as `bootstrap/`, `fontawesome/`, or any other asset bundle. A top-level `data` directory contains top-level folders named for each data bundle, such as `site-data/`, `content/`, or any other structured dataset. A page's front matter identifies which named libraries and data bundles should be copied into the page's output directory and linked or included in the generated HTML. When a page imports a library or data bundle, the entire corresponding folder is copied into `target/lib/<library-name>/` or `target/data/<bundle-name>/`, preserving the bundle's internal structure. There are no HTML templates or variable substitution features in the initial product. Each generated page is simply the rendered Markdown body placed into an HTML document that includes the configured library links and script tags.
+The primary site structure is a collection of top-level siloed sub-sites. Each silo is a self-contained sub-site rooted at a top-level folder such as `pwa/my-app/`, `docs/`, or `showcase/`. Each silo may own a `lib/` directory and a `data/` directory, and each page within that silo references only the bundles it needs from that silo's local registry. This design supports collections of PWAs or static sub-sites that are isolated, independently deployable, and able to carry their own assets without sharing a global library registry.
+
+Markdown files at the project root are treated as belonging to a special `main` silo. Their `lib` and `data` references resolve against a root-scoped `main/lib` and `main/data` directory, and their generated output is placed under `target/main/...` with the base URL configured as `/` or the root-level `site.config.json` value. This lets the project homepage or shared content live outside the sub-site folders while still keeping the asset model consistent.
+
+Each page is a single Markdown file. A silo-scoped `lib` directory contains top-level folders named for each library, such as `bootstrap/`, `fontawesome/`, or any other asset bundle. A silo-scoped `data` directory contains top-level folders named for each data bundle, such as `site-data/`, `content/`, or any other structured dataset. A page's front matter identifies which named libraries and data bundles should be copied into the page's output directory and linked or included in the generated HTML. When a page imports a library or data bundle, the entire corresponding folder is copied into `target/<silo>/lib/<library-name>/` or `target/<silo>/data/<bundle-name>/`, preserving the bundle's internal structure. There are no HTML templates or variable substitution features in the initial product. Each generated page is simply the rendered Markdown body placed into an HTML document that includes the configured library links and script tags.
 
 ## 2. Problem Statement
 
@@ -98,6 +102,15 @@ Example directory config:
 
 A subdirectory may override this value with another `site.config.json` file if it needs a different base URL or behavior.
 
+#### 8.1.1 Siloed Sub-Site Model
+The website is intended to be a collection of independent top-level silos. Each silo represents a distinct deployable sub-site, such as a PWA, a docs surface, or a marketing landing page, and sits at its own top-level folder under the project root. Each silo is responsible for its own asset inventory: it gets one local `lib/` directory and one local `data/` directory, and the `baseUrl` for that silo is the URL prefix of that top-level folder.
+
+Markdown files at the project root are treated as part of a special `main` silo. They may reference `lib` and `data` bundles from a root-level `main/lib` and `main/data` layout, even though they are not nested under any other top-level folder. The `main` silo uses the root-level config and predictable output path `target/main/...`, which keeps the site landing page or shared content consistent with the rest of the silo model without introducing a global shared asset registry.
+
+This model keeps each sub-site self-contained: the generated output for one silo should not assume the existence of a shared global `lib` or `data` directory. When a page references a library or data bundle in front matter, the build must resolve it from the current silo's `lib` or `data` tree only, copy the bundle under that silo's output path, and keep the generated HTML scoped to that silo's base URL.
+
+This is especially useful for multi-PWA deployments where each app should have its own copy of all assets it requires, rather than sharing one global installation. A silo may still contain nested pages and child directories; the top-level folder is the logical boundary for the URL and asset ownership.
+
 ### 8.2 Content Authoring
 Each page must be authored as a single Markdown file. Each content item may include front matter metadata such as:
 - title
@@ -133,7 +146,7 @@ The app must generate a standalone HTML document for each Markdown page. Generat
 - rendered body content from the Markdown file
 - stylesheet link tags for each selected library CSS bundle
 - script tags for each selected library JavaScript bundle
-- a copy of each selected data bundle under `target/data/<bundle-name>/` for browser or client-side access
+- a copy of each selected data bundle under `target/<silo>/data/<bundle-name>/` for browser or client-side access
 - app mount points for each named app in the front matter, represented as HTML div elements that JavaScript can target
 - optional metadata in the document head when provided by front matter
 - a generated filename and URL based on the page's slug or path
@@ -143,14 +156,14 @@ Each app in the `apps` front matter must be converted into a placeholder div in 
 The resulting HTML document must be composed from the Markdown-rendered body plus the configured library asset references and data bundle copies, without requiring HTML templates.
 
 ### 8.4 Library Registry
-The project must support a top-level `lib` directory that contains library folders. Each library is a self-contained folder, such as `lib/bootstrap/` or `lib/fontawesome/`. The folder may contain nested CSS, JavaScript, fonts, images, or other assets in any structure it needs.
+The project must support a silo-scoped `lib` directory that contains library folders. Each library is a self-contained folder, such as `pwa/my-app/lib/bootstrap/` or `docs/lib/fontawesome/`. The folder may contain nested CSS, JavaScript, fonts, images, or other assets in any structure it needs.
 
-Bootstrap should be provided as a default library bundle in the initial product, and page front matter may reference it by name in the same way as any other library. When a page lists a named library in front matter, the build process must copy the entire corresponding library folder into `target/lib/<library-name>/` and add the appropriate HTML link/script tags to the generated document.
+Bootstrap should be provided as a default library bundle in the initial product, and page front matter may reference it by name in the same way as any other library. When a page lists a named library in front matter, the build process must copy the entire corresponding library folder into `target/<silo>/lib/<library-name>/` and add the appropriate HTML link/script tags to the generated document.
 
 ### 8.5 Data Registry
-The project must support a top-level `data` directory that contains data bundles intended for static content assets and structured payloads. Each data bundle is a self-contained folder, such as `data/site-data/` or `data/content/`, and may contain JSON files, CSV files, YAML files, images, icons, or other static assets that are intended to be served alongside the site. The directory should behave the same way as `lib`: a named bundle is resolved from the top-level `data` directory and copied into `target/data/<bundle-name>/` when a page requests it in front matter.
+The project must support a silo-scoped `data` directory that contains data bundles intended for static content assets and structured payloads. Each data bundle is a self-contained folder, such as `pwa/my-app/data/site-data/` or `docs/data/content/`, and may contain JSON files, CSV files, YAML files, images, icons, or other static assets that are intended to be served alongside the site. The directory should behave the same way as `lib`: a named bundle is resolved from the current silo's `data` directory and copied into `target/<silo>/data/<bundle-name>/` when a page requests it in front matter.
 
-When a page lists a named data bundle in front matter, the build process must copy the corresponding folder into `target/data/<bundle-name>/` and make it available to the generated page using the same bundle naming convention as the library registry. Data bundles should be optional, page-scoped, and easy to wire into JavaScript or client-side applications without requiring a backend. The primary purpose of this folder is to hold static assets and `.json`-style data files that are consumed by the generated site at runtime.
+When a page lists a named data bundle in front matter, the build process must copy the corresponding folder into `target/<silo>/data/<bundle-name>/` and make it available to the generated page using the same bundle naming convention as the library registry. Data bundles should be optional, page-scoped, and easy to wire into JavaScript or client-side applications without requiring a backend. The primary purpose of this folder is to hold static assets and `.json`-style data files that are consumed by the generated site at runtime.
 
 ### 8.6 Collections and Taxonomy
 The app must support grouping content into logical collections such as:
