@@ -23,6 +23,8 @@ The build output defaults to `<project-root>/target`.
 
 The site is treated as a collection of top-level silos. Each silo is a self-contained sub-site rooted at its own top-level folder under `src/`, such as `src/my-app/`, `src/docs/`, or `src/marketing/`. The project root contains the shared package repositories `lib/` and `data/`, which supply named libraries and data bundles that any silo can pull in during the build. Generated output lands under `target/<silo>/...` with copied library and data bundles inside that silo's output tree.
 
+Each generated HTML page includes a base tag such as `<base href="/my-app/">` in the document head. That allows the page to reference silo-scoped assets like `lib/bootstrap/css/bootstrap.css` from any depth without relative path math, so `/my-app/index.html` and `/my-app/subfolder/file.html` can both resolve `/my-app/lib/...` correctly.
+
 Markdown files at the project root belong to a special `main` silo under `src/`. They resolve `lib` and `data` references against the shared root repositories, and they compile into `target/main/...`. This keeps the root landing page aligned with the silo model without creating per-silo copies of the asset package repositories.
 
 ## Project layout

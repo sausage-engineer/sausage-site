@@ -135,7 +135,7 @@ The app must generate a standalone HTML document for each Markdown page. Generat
 
 Each app in the `apps` front matter must be converted into a placeholder div in the HTML output, so JavaScript can find and hydrate the app by name. A simple convention is to emit `div` elements with a `data-app` attribute such as `<div data-app="todo"></div>`. The app placeholders should be inserted into the page body alongside the rendered Markdown content.
 
-The resulting HTML document must be composed from the Markdown-rendered body plus the configured library asset references and data bundle copies, without requiring HTML templates.
+The resulting HTML document must be composed from the Markdown-rendered body plus the configured library asset references and data bundle copies, without requiring HTML templates. Every generated page must include a `<base href="/<silo-name>/">` tag in the document head so that local asset paths can remain silo-scoped and stable regardless of page depth. For example, a page at `/my-app/subfolder/page.html` can reference `lib/bootstrap/css/bootstrap.css` without any `../` path logic because the browser resolves it against `/my-app/`.
 
 ### 8.4 Library Registry
 The project must support a root-level `lib` directory that contains library folders. Each library is a self-contained folder, such as `lib/bootstrap/` or `lib/fontawesome/`. The folder may contain nested CSS, JavaScript, fonts, images, or other assets in any structure it needs.

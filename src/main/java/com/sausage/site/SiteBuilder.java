@@ -50,15 +50,15 @@ public final class SiteBuilder {
             StringBuilder jsTags = new StringBuilder();
 
             for (String libraryName : page.libraries()) {
-                copyLibraryAssets(normalizedProjectRoot, outputFile.getParent(), libraryName);
-                List<Path> cssFiles = filesInLibraryOutput(outputFile.getParent(), libraryName, "css");
+                copyLibraryAssets(normalizedProjectRoot, silo.outputRoot(), libraryName);
+                List<Path> cssFiles = filesInLibraryOutput(silo.outputRoot(), libraryName, "css");
                 for (Path cssFile : cssFiles) {
-                    String href = outputFile.getParent().relativize(cssFile).toString().replace('\\', '/');
+                    String href = silo.outputRoot().relativize(cssFile).toString().replace('\\', '/');
                     cssLinks.append("<link rel=\"stylesheet\" href=\"" + href + "\">\n");
                 }
-                List<Path> jsFiles = filesInLibraryOutput(outputFile.getParent(), libraryName, "js");
+                List<Path> jsFiles = filesInLibraryOutput(silo.outputRoot(), libraryName, "js");
                 for (Path jsFile : jsFiles) {
-                    String src = outputFile.getParent().relativize(jsFile).toString().replace('\\', '/');
+                    String src = silo.outputRoot().relativize(jsFile).toString().replace('\\', '/');
                     jsTags.append("<script src=\"" + src + "\"></script>\n");
                 }
             }
@@ -79,6 +79,7 @@ public final class SiteBuilder {
             String html = "<!DOCTYPE html>\n"
                     + "<html lang=\"en\">\n"
                     + "<head>\n"
+                    + "  <base href=\"/" + silo.name() + "/\">\n"
                     + "  <meta charset=\"UTF-8\">\n"
                     + "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
                     + "  <title>" + escapeHtml(title) + "</title>\n"
@@ -388,12 +389,12 @@ public final class SiteBuilder {
         }
 
         Path outputRoot = projectRoot.resolve("target").resolve(siloName).normalize();
-        return new SiloContext(siloRoot, srcRoot, outputRoot);
+        return new SiloContext(siloName, siloRoot, srcRoot, outputRoot);
     }
 
     public record Page(String body, Map<String, String> metadata, List<String> libraries, List<String> data, List<String> apps) {
     }
 
-    private record SiloContext(Path siloRoot, Path contentRoot, Path outputRoot) {
+    private record SiloContext(String name, Path siloRoot, Path contentRoot, Path outputRoot) {
     }
 }
